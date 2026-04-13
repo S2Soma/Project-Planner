@@ -6,6 +6,18 @@ function toggleGroup(k)    { collapsed[k]=!collapsed[k]; saveData(); render({ ke
 
 document.addEventListener('keydown', e=>{
   if (e.key==='Escape') { if(drag){cancelDrag();return;} if(selectedIds.size>0){deselectAll();return;} return; }
+  if (e.key==='Tab' && selectedIds.size > 0) {
+    const el = document.activeElement;
+    const tag = el?.tagName;
+    const type = el?.type || '';
+    if (tag === 'TEXTAREA') return;
+    if (tag === 'INPUT' && type !== 'checkbox') return;
+    e.preventDefault();
+    const ids = [...selectedIds];
+    if (e.shiftKey) { ids.forEach(id => outdentTask(id)); }
+    else { ids.forEach(id => indentTask(id)); }
+    return;
+  }
   if (e.key==='d' && (e.ctrlKey || e.metaKey) && selectedIds.size > 0) {
     e.preventDefault();
     duplicateSelected();

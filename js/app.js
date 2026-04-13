@@ -2,6 +2,7 @@
 // INIT
 // ═══════════════════════════════════════════════
 loadData();
+loadCollapsedTasks();
 render();
 initPanel();
 initColResize();

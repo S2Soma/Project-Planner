@@ -202,6 +202,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .gr-name{font-size:12px;font-weight:700;color:#005C2E;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gr-count{font-size:10px;color:#64748b;flex-shrink:0}
 
+/* Subtask styles */
+.subtask-indent{display:inline-block;flex-shrink:0}
+.subtask-toggle{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:14px;height:14px;flex-shrink:0;cursor:var(--cur-pointer);
+  color:#94a3b8;border-radius:2px;transition:transform .15s,color .12s,background .12s;
+}
+.subtask-toggle:hover{color:#005C2E;background:rgba(0,92,46,.08)}
+.subtask-toggle.collapsed{transform:rotate(-90deg)}
+.subtask-dot{
+  display:inline-block;width:5px;height:5px;border-radius:50%;
+  background:#cbd5e1;flex-shrink:0;margin:0 4px 0 5px;
+}
+.task-row.subtask{background:#fafcfb}
+.task-row.subtask:hover{background:#f0faf3}
+
 /* Task row */
 .task-row{
   height:var(--row-h);display:flex;align-items:stretch;

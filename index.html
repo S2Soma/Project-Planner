@@ -138,6 +138,18 @@
 
 <div id="bulk-bar" class="bulk-bar">
   <span class="bulk-count">0 công việc đã chọn</span>
+  <button class="btn btn-sm btn-secondary" onclick="[...selectedIds].forEach(id=>indentTask(id))" title="Tab">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <polyline points="9 4 15 12 9 20"/>
+    </svg>
+    Sub-task
+  </button>
+  <button class="btn btn-sm btn-secondary" onclick="[...selectedIds].forEach(id=>outdentTask(id))" title="Shift+Tab">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <polyline points="15 4 9 12 15 20"/>
+    </svg>
+    Lùi ra
+  </button>
   <button class="btn btn-sm btn-bulk-dup" onclick="duplicateSelected()">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <rect x="9" y="9" width="13" height="13" rx="2"/>

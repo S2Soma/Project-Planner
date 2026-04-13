@@ -74,10 +74,14 @@ function renderLeft(grps) {
 
     // Task rows
     g.tasks.forEach(t => {
+      if (isTaskHidden(t)) return;
       const st  = t.status || 'todo';
       const fd  = fmtDate(t.from);
       const td  = fmtDate(t.to);
-      h += `<div class="task-row${selectedIds.has(t.id)?' selected':''}" data-id="${t.id}">
+      const level = getTaskLevel(t);
+      const hasSub = hasChildren(t.id);
+      const isCollapsed = !!collapsedTasks[t.id];
+      h += `<div class="task-row${selectedIds.has(t.id)?' selected':''}${level?' subtask':''}" data-id="${t.id}" data-level="${level}">
 
         <!-- Selection checkbox -->
         <div class="tc tc-sel">
@@ -85,11 +89,15 @@ function renderLeft(grps) {
             onclick="toggleSelect(${t.id}, event)">
         </div>
 
-        <!-- Name (with drag grip) -->
+        <!-- Name (with drag grip + indent) -->
         <div class="tc tc-name">
           <span class="drag-grip" onmousedown="startReorder(event,${t.id})" title="Kéo để sắp xếp">
             <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="3" cy="2" r="1" fill="currentColor"/><circle cx="7" cy="2" r="1" fill="currentColor"/><circle cx="3" cy="5" r="1" fill="currentColor"/><circle cx="7" cy="5" r="1" fill="currentColor"/><circle cx="3" cy="8" r="1" fill="currentColor"/><circle cx="7" cy="8" r="1" fill="currentColor"/></svg>
           </span>
+          ${level>0?`<span class="subtask-indent" style="width:${level*16}px"></span>`:''}
+          ${hasSub?`<span class="subtask-toggle${isCollapsed?' collapsed':''}" onclick="event.stopPropagation();toggleTaskCollapse(${t.id})" title="${isCollapsed?'Mở rộng':'Thu gọn'}">
+            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 3l3 3.5 3-3.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+          </span>`:`${level>0?'<span class="subtask-dot"></span>':''}`}
           <input class="fi fi-name" type="text"
             value="${esc(t.name)}" placeholder="Tên công việc..."
             data-id="${t.id}" data-field="name" data-orig="${esc(t.name)}"
@@ -232,7 +240,10 @@ function renderTimeline(grps) {
 
   let bodyH = grps.reduce((a,g) => {
     if (groupBy!=='none') a += GRP_H;
-    if (!collapsed[g.key]) a += g.tasks.length*ROW + ROW; // +ROW for add-task row
+    if (!collapsed[g.key]) {
+      const visible = g.tasks.filter(t => !isTaskHidden(t)).length;
+      a += visible*ROW + ROW; // +ROW for add-task row
+    }
     return a;
   }, 0);
   if (groupBy !== 'none') bodyH += ROW; // add-category row
@@ -260,6 +271,7 @@ function renderTimeline(grps) {
     if (groupBy!=='none') { rows += `<div class="tl-grp-bg" style="top:${y}px;height:${GRP_H}px"></div>`; y += GRP_H; }
     if (!collapsed[g.key]) {
       g.tasks.forEach(t => {
+        if (isTaskHidden(t)) return;
         rows += `<div class="tl-task-bg" style="top:${y}px;height:${ROW}px"></div>`;
         const bar = barFor(t);
         if (bar) {
