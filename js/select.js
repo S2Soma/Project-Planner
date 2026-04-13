@@ -73,6 +73,39 @@ function applySelectionVisuals() {
   }
 }
 
+function duplicateSelected() {
+  if (selectedIds.size === 0) return;
+  let maxId = tasks.reduce((m, t) => Math.max(m, t.id || 0), 0);
+  const newIds = [];
+
+  // Find originals in their current order, and the last one's position
+  const clones = [];
+  let lastIdx = -1;
+  tasks.forEach((t, i) => {
+    if (!selectedIds.has(t.id)) return;
+    if (i > lastIdx) lastIdx = i;
+    maxId++;
+    clones.push({
+      ...t,
+      id: maxId,
+      name: t.name + ' (copy)',
+      status: 'todo',
+      pct: 0
+    });
+    newIds.push(maxId);
+  });
+
+  // Insert all clones together right after the last selected task
+  tasks.splice(lastIdx + 1, 0, ...clones);
+
+  // Select the new duplicated tasks
+  selectedIds.clear();
+  newIds.forEach(id => selectedIds.add(id));
+
+  saveData();
+  render({ keep: true });
+}
+
 function bulkDelete() {
   const count = selectedIds.size;
   if (count === 0) return;

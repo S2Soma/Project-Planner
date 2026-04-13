@@ -103,21 +103,15 @@ function saveColVisible() {
 
 function applyColVisibility() {
   const panel = document.getElementById('leftPanel');
-  let w = COL_WIDTHS.sel + COL_WIDTHS.name; // checkbox + name always visible
   for (const key of Object.keys(COL_LABELS)) {
     if (colVisible[key]) {
       panel.classList.remove('hide-' + key);
-      w += COL_WIDTHS[key];
     } else {
       panel.classList.add('hide-' + key);
     }
   }
-  // Update panel width if not collapsed
-  if (!panelCollapsed) {
-    panelWidth = w;
-    panel.style.width = w + 'px';
-    savePanelState();
-  }
+  recalcPanelWidth();
+  savePanelState();
 }
 
 function toggleColMenu(e) {
@@ -150,4 +144,83 @@ function toggleColumn(key) {
   colVisible[key] = !colVisible[key];
   saveColVisible();
   applyColVisibility();
+}
+
+// ═══════════════════════════════════════════════
+// COLUMN RESIZE — drag header dividers
+// ═══════════════════════════════════════════════
+const COL_MIN = 40;
+const COL_MAX = 400;
+
+function initColResize() {
+  // Load saved widths
+  try {
+    const saved = localStorage.getItem('pmm_colWidths');
+    if (saved) {
+      const w = JSON.parse(saved);
+      const root = document.documentElement;
+      for (const [key, val] of Object.entries(w)) {
+        root.style.setProperty('--cw-' + key, val + 'px');
+      }
+    }
+  } catch(e) {}
+
+  document.querySelectorAll('.col-resizer').forEach(handle => {
+    handle.addEventListener('mousedown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const col = handle.dataset.col;
+      const startX = e.clientX;
+      const current = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cw-' + col));
+      handle.classList.add('active');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      const onMove = e2 => {
+        const dx = e2.clientX - startX;
+        const newW = Math.max(COL_MIN, Math.min(COL_MAX, current + dx));
+        document.documentElement.style.setProperty('--cw-' + col, newW + 'px');
+        recalcPanelWidth();
+      };
+
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        handle.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        saveColWidths();
+        recalcPanelWidth();
+        savePanelState();
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
+}
+
+function recalcPanelWidth() {
+  const root = getComputedStyle(document.documentElement);
+  let w = parseInt(root.getPropertyValue('--cw-sel'));
+  const keys = ['name','desc','note','pic','status','from','to'];
+  keys.forEach(k => {
+    if (k === 'name' || colVisible[k]) {
+      w += parseInt(root.getPropertyValue('--cw-' + k));
+    }
+  });
+  if (!panelCollapsed) {
+    panelWidth = w;
+    document.getElementById('leftPanel').style.width = w + 'px';
+  }
+}
+
+function saveColWidths() {
+  const root = getComputedStyle(document.documentElement);
+  const keys = ['name','desc','note','pic','status','from','to'];
+  const w = {};
+  keys.forEach(k => {
+    w[k] = parseInt(root.getPropertyValue('--cw-' + k));
+  });
+  localStorage.setItem('pmm_colWidths', JSON.stringify(w));
 }

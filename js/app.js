@@ -4,6 +4,7 @@
 loadData();
 render();
 initPanel();
+initColResize();
 initTlResizer();
 initTlPan();
 applyColVisibility();

@@ -63,12 +63,12 @@
             <div class="lc lc-sel">
               <input type="checkbox" class="sel-cb-all" onclick="toggleSelectAll()" title="Chọn tất cả">
             </div>
-            <div class="lc lc-name">Name</div>
-            <div class="lc lc-desc">Description</div>
-            <div class="lc lc-note">Note</div>
-            <div class="lc lc-pic">Main PIC</div>
-            <div class="lc lc-status">Status</div>
-            <div class="lc lc-from">Start Date</div>
+            <div class="lc lc-name">Name<div class="col-resizer" data-col="name"></div></div>
+            <div class="lc lc-desc">Description<div class="col-resizer" data-col="desc"></div></div>
+            <div class="lc lc-note">Note<div class="col-resizer" data-col="note"></div></div>
+            <div class="lc lc-pic">Main PIC<div class="col-resizer" data-col="pic"></div></div>
+            <div class="lc lc-status">Status<div class="col-resizer" data-col="status"></div></div>
+            <div class="lc lc-from">Start Date<div class="col-resizer" data-col="from"></div></div>
             <div class="lc lc-to">End Date</div>
           </div>
         </div>
@@ -138,6 +138,13 @@
 
 <div id="bulk-bar" class="bulk-bar">
   <span class="bulk-count">0 công việc đã chọn</span>
+  <button class="btn btn-sm btn-bulk-dup" onclick="duplicateSelected()">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <rect x="9" y="9" width="13" height="13" rx="2"/>
+      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+    </svg>
+    Nhân bản
+  </button>
   <button class="btn btn-sm btn-bulk-del" onclick="bulkDelete()">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <polyline points="3 6 5 6 21 6"/>

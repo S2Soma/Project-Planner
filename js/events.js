@@ -6,6 +6,11 @@ function toggleGroup(k)    { collapsed[k]=!collapsed[k]; saveData(); render({ ke
 
 document.addEventListener('keydown', e=>{
   if (e.key==='Escape') { if(drag){cancelDrag();return;} if(selectedIds.size>0){deselectAll();return;} return; }
+  if (e.key==='d' && (e.ctrlKey || e.metaKey) && selectedIds.size > 0) {
+    e.preventDefault();
+    duplicateSelected();
+    return;
+  }
   if (e.key==='Delete' && selectedIds.size > 0) {
     // Don't trigger when typing in a text input/textarea
     const el = document.activeElement;
