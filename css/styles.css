@@ -484,6 +484,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 /* ══════════════════════════════════════════════
    INLINE ADD ROWS
 ══════════════════════════════════════════════ */
+.add-row-group{display:flex;border-bottom:1px solid #C2EBCF}
+.add-row-group .add-row{flex:1;border-bottom:none}
+.add-row-group .paste-btn{flex:0 0 auto;padding:0 14px;border-left:1px solid #C2EBCF}
 .add-row{
   height:var(--row-h);display:flex;align-items:center;gap:6px;
   padding:0 10px 0 30px;
@@ -624,3 +627,59 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 }
 .pic-select:hover{background:rgba(0,166,81,.04)}
 .pic-select:focus{background:rgba(0,166,81,.06);outline:1.5px solid #33B96A}
+
+/* ══════════════════════════════════════════════
+   PASTE TASKS MODAL
+══════════════════════════════════════════════ */
+.paste-modal-overlay{
+  display:none;position:fixed;inset:0;z-index:9999;
+  background:rgba(0,0,0,.4);backdrop-filter:blur(2px);
+  align-items:center;justify-content:center;
+}
+.paste-modal-overlay.open{display:flex}
+.paste-modal{
+  background:#fff;border-radius:10px;width:480px;max-width:92vw;max-height:85vh;
+  box-shadow:0 16px 48px rgba(0,0,0,.18);display:flex;flex-direction:column;
+  overflow:hidden;
+}
+.paste-modal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;border-bottom:1px solid #e2e8f0;
+  font-size:14px;font-weight:700;color:#1e293b;
+}
+.paste-modal-close{
+  width:28px;height:28px;border:none;background:transparent;
+  cursor:var(--cur-pointer);color:#94a3b8;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .12s,color .12s;
+}
+.paste-modal-close:hover{background:#fee2e2;color:#dc2626}
+.paste-modal-body{
+  padding:16px 18px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;
+}
+.paste-label{font-size:12px;font-weight:600;color:#334155}
+.paste-sub{font-weight:400;color:#94a3b8;font-size:11px}
+.paste-input{
+  border:1px solid #e2e8f0;border-radius:5px;height:34px;font-size:12.5px;
+  padding:0 10px;outline:none;background:#fff;color:#1e293b;font-family:inherit;
+}
+.paste-input:focus{border-color:#00A651;box-shadow:0 0 0 3px rgba(0,166,81,.1)}
+.paste-area{
+  border:1px solid #e2e8f0;border-radius:5px;font-size:12.5px;
+  padding:8px 10px;outline:none;background:#fff;color:#1e293b;font-family:inherit;
+  resize:vertical;min-height:120px;line-height:1.6;
+}
+.paste-area:focus{border-color:#00A651;box-shadow:0 0 0 3px rgba(0,166,81,.1)}
+.paste-preview{
+  background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;
+  padding:8px 12px;max-height:160px;overflow-y:auto;
+  font-size:12px;color:#334155;
+}
+.paste-hint{color:#94a3b8;font-style:italic;font-size:11.5px}
+.paste-count{font-weight:600;color:#007A3D;display:block;margin-bottom:4px}
+.paste-item{padding:2px 0;border-bottom:1px solid #f1f5f9;font-size:11.5px}
+.paste-item:last-child{border-bottom:none}
+.paste-modal-footer{
+  display:flex;align-items:center;justify-content:flex-end;gap:8px;
+  padding:12px 18px;border-top:1px solid #e2e8f0;
+}

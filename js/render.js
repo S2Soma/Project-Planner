@@ -45,6 +45,13 @@ function renderLeft(grps) {
         <line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/>
       </svg>
       <p>Chưa có công việc nào</p>
+      <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="openPasteModal('')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
+          <rect x="8" y="2" width="8" height="4" rx="1"/>
+        </svg>
+        Dán danh sách công việc
+      </button>
     </div>`;
   }
 
@@ -143,13 +150,22 @@ function renderLeft(grps) {
       </div>`;
     });
 
-    // "+ Thêm công việc" row at bottom of each group
+    // "+ Thêm công việc" and "Dán danh sách" row at bottom of each group
     const cat = groupBy !== 'none' ? g.key : 'Chưa phân loại';
-    h += `<div class="add-row" onclick="addTaskInline('${esc(cat)}')">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-      </svg>
-      <span>Thêm công việc</span>
+    h += `<div class="add-row-group">
+      <div class="add-row" onclick="addTaskInline('${esc(cat)}')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        <span>Thêm công việc</span>
+      </div>
+      <div class="add-row paste-btn" onclick="openPasteModal('${esc(cat)}')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
+          <rect x="8" y="2" width="8" height="4" rx="1"/>
+        </svg>
+        <span>Dán danh sách</span>
+      </div>
     </div>`;
   });
 
