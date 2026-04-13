@@ -38,16 +38,12 @@
       </button>
       <div class="year-menu" id="yearMenu"></div>
     </div>
-    <div class="export-wrap">
-      <button class="btn btn-sm btn-secondary" onclick="toggleExportMenu(event)">
-        Export
-        <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 2.5l3 3 3-3" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
-      </button>
-      <div class="export-menu" id="exportMenu">
-        <div class="export-opt" onclick="exportExcel()">Excel (.xlsx)</div>
-        <div class="export-opt" onclick="exportData()">JSON (.json)</div>
-      </div>
-    </div>
+    <button class="btn btn-sm btn-secondary" onclick="exportExcel()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Export Excel
+    </button>
     <label class="btn btn-sm btn-secondary" style="cursor:pointer">
       Import
       <input type="file" accept=".xlsx,.xls,.json" style="display:none" onchange="importData(event)">

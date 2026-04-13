@@ -70,7 +70,7 @@ function exportData() {
 async function exportExcel() {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Timeline', {
-    views: [{ state: 'frozen', xSplit: 8, ySplit: 3 }]
+    views: [{ state: 'frozen', xSplit: 2, ySplit: 3 }]
   });
 
   // ── TC Data brand colors (ARGB) ──
@@ -121,6 +121,10 @@ async function exportExcel() {
   }
   const numWeeks = Math.ceil(workDays.length / 5);
 
+  // Find today's column index
+  const todayDateStr = new Date().toISOString().slice(0, 10);
+  const todayColIdx = workDays.findIndex(d => d.toISOString().slice(0, 10) === todayDateStr);
+
   // Column indices (1-based for ExcelJS)
   const DC  = 9;                          // Day cols start at col I
   const TNC = DC + workDays.length + 3;   // Team No. column
@@ -141,27 +145,35 @@ async function exportExcel() {
   ws.getColumn(TNC+3).width = 22;
   ws.getColumn(TNC+4).width = 12;
 
-  // ═══════ ROW 1: date serial numbers ═══════
-  ws.getRow(1).height = 14;
+  // Today highlight color
+  const C_TODAY    = 'FFFFF0F0';   // light red/pink background
+  const C_TODAY_HD = 'FFFF6B6B';   // red for header rows
+
+  // ═══════ ROW 1: actual dates (dd/MM) — vertical text ═══════
+  ws.getRow(1).height = 38;
   workDays.forEach((d, i) => {
     const cell = ws.getCell(1, DC+i);
-    cell.value = dateToSerial(d.toISOString().slice(0,10));
-    cell.font = { size: 7, color:{argb:C.grayText} };
-    cell.alignment = { horizontal:'center' };
+    cell.value = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+    const isToday = i === todayColIdx;
+    cell.font = { size: 7, color:{argb: isToday ? C_TODAY_HD : C.grayText}, bold: isToday };
+    cell.alignment = { horizontal:'center', vertical:'middle', textRotation:90 };
+    if (isToday) cell.fill = fill(C_TODAY);
   });
   const tcLbl = ws.getCell(1, TNC);
   tcLbl.value = 'TC TEAM';
   tcLbl.font = { bold:true, size:12, color:{argb:C.evergreen} };
 
-  // ═══════ ROW 2: week labels (merged) ═══════
+  // ═══════ ROW 2: week labels (merged) — highlight today's week ═══════
   ws.getRow(2).height = 24;
+  const todayWeekIdx = todayColIdx >= 0 ? Math.floor(todayColIdx / 5) : -1;
   for (let w = 0; w < numWeeks; w++) {
     const sc = DC + w*5;
     const ec = Math.min(sc+4, DC+workDays.length-1);
     if (ec > sc) ws.mergeCells(2, sc, 2, ec);
     const cell = ws.getCell(2, sc);
+    const isThisWeek = w === todayWeekIdx;
     cell.value = `W${String(w+1).padStart(2,'0')}`;
-    cell.fill = fill(C.forest);
+    cell.fill = fill(isThisWeek ? C_TODAY_HD : C.forest);
     cell.font = { bold:true, color:{argb:C.white}, size:10 };
     cell.alignment = { horizontal:'center', vertical:'middle' };
     cell.border = bdr(C.evergreen);
@@ -175,20 +187,22 @@ async function exportExcel() {
     alignment: { vertical:'middle', wrapText:true },
     border: bdr(C.evergreen),
   };
-  [[2,'Project Planning'],[3,'Description'],[4,'Note'],[5,'Main PIC'],
+  [[2,'Task Name'],[3,'Description'],[4,'Note'],[5,'Main PIC'],
    [6,'Status'],[7,'Start Date'],[8,'End Date']].forEach(([col,lbl]) => {
     const cell = ws.getCell(3, col);
     cell.value = lbl;
     cell.fill = hdrStyle.fill; cell.font = hdrStyle.font;
     cell.alignment = hdrStyle.alignment; cell.border = hdrStyle.border;
   });
-  // Day headers
-  workDays.forEach((_, i) => {
+  // Day headers — show actual date (dd) + highlight today
+  const DAY_ABBR_EX = ['CN','T2','T3','T4','T5','T6','T7'];
+  workDays.forEach((d, i) => {
     const cell = ws.getCell(3, DC+i);
-    cell.value = `D${String(i+1).padStart(2,'0')}`;
-    cell.fill = fill(C.forest);
+    const isToday = i === todayColIdx;
+    cell.value = `${DAY_ABBR_EX[d.getDay()]}\n${d.getDate()}`;
+    cell.fill = fill(isToday ? C_TODAY_HD : C.forest);
     cell.font = { bold:true, color:{argb:C.white}, size:7 };
-    cell.alignment = { horizontal:'center', vertical:'middle' };
+    cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
     cell.border = bdr(C.evergreen);
   });
   // Team headers
@@ -217,7 +231,9 @@ async function exportExcel() {
     }
     for (let i = 0; i < workDays.length; i++) {
       const cell = ws.getCell(r, DC+i);
-      cell.value = ' '; cell.fill = fill(C.mintDark); cell.border = bdr(C.borderLt);
+      cell.value = ' ';
+      cell.fill = fill(i === todayColIdx ? C_TODAY : C.mintDark);
+      cell.border = bdr(C.borderLt);
     }
     r++;
 
@@ -276,33 +292,22 @@ async function exportExcel() {
       tc.fill = fill(bg); tc.font = { size:9, color:{argb:C.darkText} };
       tc.alignment = { horizontal:'center', vertical:'middle' }; tc.border = bd;
 
-      // Day columns — Gantt bar visualization
+      // Day columns — Gantt bar visualization (uniform color)
       const fromTime = t.from ? new Date(t.from+'T00:00:00').getTime() : null;
       const toTime   = t.to   ? new Date(t.to  +'T00:00:00').getTime() : null;
       const picColor = getPicColor(t.owner);
-      const barFull  = hexToARGB(picColor);
-      const barLight = lightenARGB(picColor, 0.35);
-
-      // Find which day cells are in the task's date range
-      const barIndices = [];
-      for (let i = 0; i < workDays.length; i++) {
-        if (fromTime && toTime && workDays[i].getTime() >= fromTime && workDays[i].getTime() <= toTime) {
-          barIndices.push(i);
-        }
-      }
-      // Progress: first N% of bar cells get full color, rest get lighter
-      const progCells = barIndices.length > 0 ? Math.round(barIndices.length * (t.pct || 0) / 100) : 0;
+      const barColor = hexToARGB(picColor);
 
       for (let i = 0; i < workDays.length; i++) {
         const cell = ws.getCell(r, DC+i);
         cell.value = ' ';
-        const barIdx = barIndices.indexOf(i);
-        if (barIdx >= 0) {
-          cell.fill = fill(barIdx < progCells ? barFull : barLight);
+        const isBar = fromTime && toTime && workDays[i].getTime() >= fromTime && workDays[i].getTime() <= toTime;
+        if (isBar) {
+          cell.fill = fill(barColor);
         } else {
-          cell.fill = fill(bg);
+          cell.fill = fill(i === todayColIdx ? C_TODAY : bg);
         }
-        cell.border = bdr(C.borderLt);
+        cell.border = bdr(i === todayColIdx ? C_TODAY_HD : C.borderLt);
       }
 
       r++;
