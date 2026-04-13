@@ -60,6 +60,9 @@ function renderLeft(grps) {
     if (groupBy !== 'none') {
       const col = collapsed[g.key];
       h += `<div class="group-row" data-category="${esc(g.key)}" onclick="toggleGroup('${esc(g.key)}')">
+        <span class="grp-drag-grip" onmousedown="startCatReorder(event,'${esc(g.key)}')" title="Kéo để di chuyển danh mục">
+          <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="3" cy="2" r="1" fill="currentColor"/><circle cx="7" cy="2" r="1" fill="currentColor"/><circle cx="3" cy="5" r="1" fill="currentColor"/><circle cx="7" cy="5" r="1" fill="currentColor"/><circle cx="3" cy="8" r="1" fill="currentColor"/><circle cx="7" cy="8" r="1" fill="currentColor"/></svg>
+        </span>
         <svg class="chev ${col?'collapsed':''}" width="12" height="12" viewBox="0 0 12 12">
           <path d="M2 4l4 4 4-4" stroke="#005C2E" stroke-width="1.8" fill="none" stroke-linecap="round"/>
         </svg>
@@ -129,24 +132,22 @@ function renderLeft(grps) {
           </select>
         </div>
 
-        <!-- Start Date (clickable → focus on timeline) -->
+        <!-- Start Date -->
         <div class="tc tc-from">
-          <span class="dcell${fd?' dcell-link':' empty'}" ${fd?`onclick="focusTask(${t.id},'from')"`:''} title="${fd?'Click để xem trên timeline':'Chưa có ngày'}">${fd||'—'}</span>
+          <input class="fi fi-date" type="date" value="${t.from||''}"
+            ${t.to?`max="${t.to}"`:''}
+            data-id="${t.id}" data-field="from"
+            onchange="saveDate(this)" onclick="focusTask(${t.id},'from')" title="Start Date">
         </div>
 
-        <!-- End Date (clickable → focus on timeline) -->
+        <!-- End Date -->
         <div class="tc tc-to">
-          <span class="dcell${td?' dcell-link':' empty'}" ${td?`onclick="focusTask(${t.id},'to')"`:''} title="${td?'Click để xem trên timeline':'Chưa có ngày'}">${td||'—'}</span>
+          <input class="fi fi-date" type="date" value="${t.to||''}"
+            ${t.from?`min="${t.from}"`:''}
+            data-id="${t.id}" data-field="to"
+            onchange="saveDate(this)" onclick="focusTask(${t.id},'to')" title="End Date">
         </div>
 
-        <!-- Delete (hover) -->
-        <button class="row-del" onclick="deleteById(${t.id})" title="Xóa">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-            <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
-          </svg>
-        </button>
       </div>`;
     });
 
@@ -318,9 +319,11 @@ function renderYearMenu() {
   ).join('');
 }
 
-// Scroll sync
+// Scroll sync — bidirectional
 function syncScroll() {
   const sc = document.getElementById('tlScroll');
   const lb = document.getElementById('leftBody');
-  sc.onscroll = () => { lb.scrollTop = sc.scrollTop; };
+  let syncing = false;
+  sc.onscroll = () => { if (syncing) return; syncing = true; lb.scrollTop = sc.scrollTop; syncing = false; };
+  lb.onscroll = () => { if (syncing) return; syncing = true; sc.scrollTop = lb.scrollTop; syncing = false; };
 }

@@ -1,4 +1,154 @@
 // ═══════════════════════════════════════════════
+// CATEGORY REORDER — drag to reorder groups
+// ═══════════════════════════════════════════════
+let catReorder = null;
+
+function startCatReorder(e, category) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  catReorder = {
+    category,
+    startY: e.clientY,
+    moved: false,
+    targetCategory: null,
+    insertBefore: true
+  };
+  document.body.style.userSelect = 'none';
+}
+
+document.addEventListener('mousemove', e => {
+  if (!catReorder) return;
+
+  if (!catReorder.moved) {
+    if (Math.abs(e.clientY - catReorder.startY) < 5) return;
+    catReorder.moved = true;
+
+    // Show ghost
+    const ghost = document.getElementById('reorder-ghost');
+    ghost.textContent = catReorder.category;
+    ghost.style.display = 'block';
+
+    // Dim source group row
+    const srcRow = document.querySelector(`.group-row[data-category="${CSS.escape(catReorder.category)}"]`);
+    if (srcRow) srcRow.classList.add('cat-dragging');
+  }
+
+  // Update ghost position
+  const ghost = document.getElementById('reorder-ghost');
+  ghost.style.left = (e.clientX + 16) + 'px';
+  ghost.style.top = (e.clientY - 14) + 'px';
+
+  // Find drop target among group rows
+  const lb = document.getElementById('leftBody');
+  const groupRows = [...lb.querySelectorAll('.group-row')];
+  const calBody = document.querySelector('.cal-body');
+  const calRect = calBody.getBoundingClientRect();
+  const indicator = document.getElementById('reorder-indicator');
+
+  let targetCategory = null;
+  let insertBefore = true;
+  let indicatorY = null;
+
+  for (let i = 0; i < groupRows.length; i++) {
+    const el = groupRows[i];
+    const r = el.getBoundingClientRect();
+    const midY = r.top + r.height / 2;
+
+    if (e.clientY < midY) {
+      targetCategory = el.dataset.category;
+      insertBefore = true;
+      indicatorY = r.top - 1;
+      break;
+    }
+  }
+
+  // If cursor is below all groups → insert after last
+  if (targetCategory === null && groupRows.length > 0) {
+    const last = groupRows[groupRows.length - 1];
+    targetCategory = last.dataset.category;
+    insertBefore = false;
+    // Find the bottom of the last group's content
+    const lastCat = last.dataset.category;
+    const allItems = [...lb.querySelectorAll('.group-row, .task-row, .add-row-group')];
+    let bottomEl = last;
+    let foundCat = false;
+    for (const item of allItems) {
+      if (item.classList.contains('group-row') && item.dataset.category === lastCat) { foundCat = true; continue; }
+      if (foundCat && item.classList.contains('group-row')) break;
+      if (foundCat) bottomEl = item;
+    }
+    indicatorY = bottomEl.getBoundingClientRect().bottom - 1;
+  }
+
+  // Show indicator
+  if (indicatorY !== null) {
+    indicator.style.left = calRect.left + 'px';
+    indicator.style.width = calRect.width + 'px';
+    indicator.style.top = indicatorY + 'px';
+    indicator.style.display = 'block';
+  } else {
+    indicator.style.display = 'none';
+  }
+
+  catReorder.targetCategory = targetCategory;
+  catReorder.insertBefore = insertBefore;
+});
+
+document.addEventListener('mouseup', e => {
+  if (!catReorder) return;
+
+  const { category, moved, targetCategory, insertBefore } = catReorder;
+
+  // Cleanup visuals
+  document.body.style.userSelect = '';
+  document.getElementById('reorder-ghost').style.display = 'none';
+  document.getElementById('reorder-indicator').style.display = 'none';
+  const srcRow = document.querySelector(`.group-row[data-category="${CSS.escape(category)}"]`);
+  if (srcRow) srcRow.classList.remove('cat-dragging');
+
+  if (moved && targetCategory !== null && targetCategory !== category) {
+    // Build current category order from tasks array
+    const catOrder = [];
+    tasks.forEach(t => {
+      const cat = t.category || 'Chưa phân loại';
+      if (!catOrder.includes(cat)) catOrder.push(cat);
+    });
+
+    // Remove source category from order
+    const srcIdx = catOrder.indexOf(category);
+    if (srcIdx >= 0) catOrder.splice(srcIdx, 1);
+
+    // Find target position
+    let tgtIdx = catOrder.indexOf(targetCategory);
+    if (tgtIdx === -1) tgtIdx = catOrder.length;
+    if (!insertBefore) tgtIdx++;
+
+    // Insert at new position
+    catOrder.splice(tgtIdx, 0, category);
+
+    // Rebuild tasks array in new category order
+    const tasksByCat = {};
+    tasks.forEach(t => {
+      const cat = t.category || 'Chưa phân loại';
+      if (!tasksByCat[cat]) tasksByCat[cat] = [];
+      tasksByCat[cat].push(t);
+    });
+
+    tasks = [];
+    catOrder.forEach(cat => {
+      if (tasksByCat[cat]) tasks.push(...tasksByCat[cat]);
+    });
+
+    saveData();
+    render({ keep: true });
+  }
+
+  catReorder = null;
+});
+
+// ═══════════════════════════════════════════════
 // TASK REORDER — drag to reorder rows (cross-group)
 // ═══════════════════════════════════════════════
 let reorder = null;

@@ -179,7 +179,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .lc-to    {width:var(--cw-to)}
 
 /* Body */
-.left-body{flex:1;overflow-y:hidden;position:relative}
+.left-body{flex:1;overflow-y:auto;position:relative;scrollbar-width:none}
+.left-body::-webkit-scrollbar{display:none}
 
 /* Group row — full width */
 .group-row{
@@ -238,6 +239,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .fi-desc{font-size:11.5px;color:#334155}
 .fi-note{font-size:11px;color:#64748b}
 .fi-pic {font-size:11.5px;color:#334155}
+.fi-date{font-size:11px;color:#475569;padding:0 2px;cursor:var(--cur-pointer)}
+.fi-date::-webkit-calendar-picker-indicator{cursor:var(--cur-pointer);opacity:.5;transition:opacity .12s}
+.fi-date:hover::-webkit-calendar-picker-indicator{opacity:1}
 
 /* Status badge */
 .sbadge{
@@ -480,6 +484,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 
 /* Group row highlight during reorder hover */
 .group-row.reorder-hover{background:#B0DFC0;outline:1.5px solid #00A651;outline-offset:-1.5px}
+
+/* Category drag grip */
+.grp-drag-grip{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:16px;height:20px;color:#94a3b8;cursor:var(--cur-grab);
+  border-radius:2px;flex-shrink:0;transition:color .12s,background .12s;
+}
+.grp-drag-grip:hover{color:#005C2E;background:rgba(0,92,46,.1)}
+.grp-drag-grip:active{cursor:var(--cur-grabbing)}
+.group-row.cat-dragging{opacity:.35;background:#B0DFC0}
 
 /* ══════════════════════════════════════════════
    INLINE ADD ROWS

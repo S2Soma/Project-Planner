@@ -6,6 +6,20 @@ function toggleGroup(k)    { collapsed[k]=!collapsed[k]; saveData(); render({ ke
 
 document.addEventListener('keydown', e=>{
   if (e.key==='Escape') { if(drag){cancelDrag();return;} if(selectedIds.size>0){deselectAll();return;} return; }
+  if (e.key==='Delete' && selectedIds.size > 0) {
+    // Don't trigger when typing in a text input/textarea
+    const el = document.activeElement;
+    const tag = el?.tagName;
+    const type = el?.type || '';
+    if (tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (tag === 'INPUT' && type !== 'checkbox') return;
+    const count = selectedIds.size;
+    if (!confirm(`Xóa ${count} công việc đã chọn?`)) return;
+    tasks = tasks.filter(t => !selectedIds.has(t.id));
+    selectedIds.clear();
+    saveData();
+    render({ keep: true });
+  }
 });
 
 // ═══════════════════════════════════════════════

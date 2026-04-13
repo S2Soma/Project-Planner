@@ -70,15 +70,40 @@ function highlightTask(id) {
   setTimeout(() => row.classList.remove('hl'), 900);
 }
 
+// Save date from date picker
+function saveDate(el) {
+  const id = parseInt(el.dataset.id);
+  const field = el.dataset.field;
+  const val = el.value;
+  const t = tasks.find(t => t.id === id);
+  if (!t) return;
+
+  // Validate: start date must be before end date
+  if (field === 'from' && t.to && val > t.to) {
+    alert('Ngày bắt đầu không thể sau ngày kết thúc!');
+    el.value = t.from || '';
+    return;
+  }
+  if (field === 'to' && t.from && val < t.from) {
+    alert('Ngày kết thúc không thể trước ngày bắt đầu!');
+    el.value = t.to || '';
+    return;
+  }
+
+  t[field] = val;
+  saveData();
+  render({ keep: true });
+}
+
 // Update date cells after drag
 function updateDateCells(id) {
   const t = tasks.find(t => t.id === id);
   if (!t) return;
   const row = document.querySelector(`.task-row[data-id="${id}"]`);
   if (!row) return;
-  const cells = row.querySelectorAll('.dcell');
-  if (cells[0]) cells[0].textContent = fmtDate(t.from)||'—';
-  if (cells[1]) cells[1].textContent = fmtDate(t.to)||'—';
+  const inputs = row.querySelectorAll('.fi-date');
+  if (inputs[0]) inputs[0].value = t.from || '';
+  if (inputs[1]) inputs[1].value = t.to || '';
 }
 
 // ═══════════════════════════════════════════════
