@@ -1,7 +1,103 @@
 // ═══════════════════════════════════════════════
+// TASK MAP — O(1) lookups + cached computations
+// ═══════════════════════════════════════════════
+let taskMap = new Map();     // id → task
+let _levelCache = {};        // id → level
+let _hiddenCache = {};       // id → boolean
+let _childrenCache = {};     // id → boolean (has children)
+let _dateIndex = {};         // date string → day index
+let _weekStartIdx = {};      // wn → first day index
+
+function rebuildCaches() {
+  // Task map
+  taskMap.clear();
+  tasks.forEach(t => taskMap.set(t.id, t));
+
+  // Children cache
+  _childrenCache = {};
+  tasks.forEach(t => { if (t.parentId) _childrenCache[t.parentId] = true; });
+
+  // Level cache
+  _levelCache = {};
+  tasks.forEach(t => { _levelCache[t.id] = _calcLevel(t); });
+
+  // Hidden cache
+  _hiddenCache = {};
+  tasks.forEach(t => { _hiddenCache[t.id] = _calcHidden(t); });
+
+  // Date index (for barFor)
+  _dateIndex = {};
+  days.forEach((d, i) => { _dateIndex[d.date] = i; });
+
+  // Week start index
+  _weekStartIdx = {};
+  if (proposeMode) {
+    weeks.forEach(w => { _weekStartIdx[w.wn] = w.wn * 7; });
+  } else {
+    days.forEach((d, i) => {
+      if (_weekStartIdx[d.wn] === undefined) _weekStartIdx[d.wn] = i;
+    });
+  }
+
+  // Auto-calc parent progress
+  _calcParentProgress();
+}
+
+function _calcLevel(t) {
+  let level = 0, cur = t, seen = new Set();
+  while (cur && cur.parentId) {
+    if (seen.has(cur.id)) break;
+    seen.add(cur.id);
+    const parent = taskMap.get(cur.parentId);
+    if (!parent) break;
+    level++;
+    cur = parent;
+  }
+  return level;
+}
+
+function _calcHidden(t) {
+  let cur = t, seen = new Set();
+  while (cur && cur.parentId) {
+    if (seen.has(cur.id)) break;
+    seen.add(cur.id);
+    if (collapsedTasks[cur.parentId]) return true;
+    const parent = taskMap.get(cur.parentId);
+    if (!parent) break;
+    cur = parent;
+  }
+  return false;
+}
+
+function _calcParentProgress() {
+  // Build children map
+  const childrenOf = {};
+  tasks.forEach(t => {
+    if (t.parentId) {
+      if (!childrenOf[t.parentId]) childrenOf[t.parentId] = [];
+      childrenOf[t.parentId].push(t);
+    }
+  });
+  // Update parent pct from children average
+  Object.entries(childrenOf).forEach(([pid, children]) => {
+    const parent = taskMap.get(parseInt(pid));
+    if (!parent) return;
+    const avg = Math.round(children.reduce((s, c) => s + (c.pct || 0), 0) / children.length);
+    parent.pct = avg;
+    if (children.every(c => c.status === 'done')) parent.status = 'done';
+  });
+}
+
+// Fast accessors using caches
+function getTaskLevel(t) { return _levelCache[t.id] || 0; }
+function hasChildren(id) { return !!_childrenCache[id]; }
+function isTaskHidden(t) { return !!_hiddenCache[t.id]; }
+function getWeekStartIdx(wn) { return _weekStartIdx[wn] || 0; }
+
+// ═══════════════════════════════════════════════
 // SUBTASK HELPERS
 // ═══════════════════════════════════════════════
-let collapsedTasks = {};  // { taskId: true } — collapsed parent tasks
+let collapsedTasks = {};
 
 function loadCollapsedTasks() {
   try {
@@ -13,41 +109,15 @@ function saveCollapsedTasks() {
   localStorage.setItem('pmm_collapsedTasks', JSON.stringify(collapsedTasks));
 }
 
-function getTaskLevel(t) {
-  let level = 0, cur = t;
-  while (cur && cur.parentId) {
-    const parent = tasks.find(p => p.id === cur.parentId);
-    if (!parent || parent.id === cur.id) break;
-    level++;
-    cur = parent;
-  }
-  return level;
-}
-
-function hasChildren(id) {
-  return tasks.some(t => t.parentId === id);
-}
-
 function getDescendantIds(id) {
   const ids = [];
-  const children = tasks.filter(t => t.parentId === id);
-  children.forEach(c => {
-    ids.push(c.id);
-    ids.push(...getDescendantIds(c.id));
+  tasks.forEach(t => {
+    if (t.parentId === id) {
+      ids.push(t.id);
+      ids.push(...getDescendantIds(t.id));
+    }
   });
   return ids;
-}
-
-function isTaskHidden(t) {
-  // A task is hidden if any ancestor is collapsed
-  let cur = t;
-  while (cur && cur.parentId) {
-    if (collapsedTasks[cur.parentId]) return true;
-    const parent = tasks.find(p => p.id === cur.parentId);
-    if (!parent || parent.id === cur.id) break;
-    cur = parent;
-  }
-  return false;
 }
 
 function toggleTaskCollapse(id) {
@@ -59,21 +129,26 @@ function toggleTaskCollapse(id) {
 function indentTask(id) {
   const idx = tasks.findIndex(t => t.id === id);
   if (idx <= 0) return;
-  // Find the previous sibling (same parentId, just above)
   const t = tasks[idx];
-  const prevSibling = tasks.slice(0, idx).reverse().find(p =>
-    p.id !== id && p.category === t.category && !getDescendantIds(id).includes(p.id)
-  );
-  if (!prevSibling) return;
-  t.parentId = prevSibling.id;
-  saveData();
-  render({ keep: true });
+  const curLevel = _levelCache[t.id] || 0;
+  for (let i = idx - 1; i >= 0; i--) {
+    const above = tasks[i];
+    if (above.category !== t.category) break;
+    const aboveLevel = _levelCache[above.id] || 0;
+    if (aboveLevel === curLevel) {
+      t.parentId = above.id;
+      saveData();
+      render({ keep: true });
+      return;
+    }
+    if (aboveLevel < curLevel) break;
+  }
 }
 
 function outdentTask(id) {
-  const t = tasks.find(t => t.id === id);
+  const t = taskMap.get(id);
   if (!t || !t.parentId) return;
-  const parent = tasks.find(p => p.id === t.parentId);
+  const parent = taskMap.get(t.parentId);
   t.parentId = parent ? parent.parentId || null : null;
   if (!t.parentId) delete t.parentId;
   saveData();
@@ -101,6 +176,7 @@ function getGrouped(list) {
 // AUTO-DELAY — mark overdue tasks
 // ═══════════════════════════════════════════════
 function autoDelay() {
+  if (proposeMode) return;
   const today = new Date().toISOString().slice(0, 10);
   let changed = false;
   tasks.forEach(t => {
@@ -113,14 +189,21 @@ function autoDelay() {
 }
 
 // ═══════════════════════════════════════════════
-// BAR
+// BAR — uses cached date index
 // ═══════════════════════════════════════════════
 function barFor(t) {
-  if (!days.length || !t.from || !t.to) return null;
-  const fi = days.findIndex(d => d.date === t.from);
-  let li = -1;
-  for (let i = days.length-1; i >= 0; i--) { if (days[i].date === t.to){ li=i; break; } }
-  if (fi < 0 || li < 0) return null;
-  return { si:fi, span:li-fi+1 };
+  if (!days.length) return null;
+  if (proposeMode) {
+    if (t.propFrom == null || t.propTo == null) return null;
+    const si = t.propFrom * 7;
+    const ei = (t.propTo + 1) * 7 - 1;
+    if (si >= days.length) return null;
+    return { si, span: Math.min(ei, days.length - 1) - si + 1 };
+  }
+  if (!t.from || !t.to) return null;
+  const fi = _dateIndex[t.from];
+  const li = _dateIndex[t.to];
+  if (fi == null || li == null) return null;
+  return { si: fi, span: li - fi + 1 };
 }
 function pctCol(p) { return p>=80?'#00A651':p>=50?'#d97706':'#dc2626'; }

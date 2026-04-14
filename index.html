@@ -18,6 +18,17 @@
       <button class="view-tab" data-mode="year" onclick="setViewMode('year')">Year</button>
     </div>
   </div>
+  <div class="propose-wrap">
+    <label class="propose-toggle" title="Chuyển giữa Current Date và Propose Date">
+      <input type="checkbox" id="proposeCheck" onchange="toggleProposeMode(this.checked)">
+      <span class="propose-label" id="proposeLabel">Propose</span>
+    </label>
+    <div class="propose-weeks" id="proposeWeeksWrap" style="display:none">
+      <span>Weeks:</span>
+      <input type="number" id="proposeWeeksInput" min="1" max="200" value="12"
+        onchange="setProposeWeeks(parseInt(this.value)||12)" class="propose-weeks-input">
+    </div>
+  </div>
   <div class="topbar-right">
     <div class="col-toggle-wrap">
       <button class="col-toggle-btn" onclick="toggleColMenu(event)" title="Ẩn/hiện cột">
@@ -68,8 +79,8 @@
             <div class="lc lc-note">Note<div class="col-resizer" data-col="note"></div></div>
             <div class="lc lc-pic">Main PIC<div class="col-resizer" data-col="pic"></div></div>
             <div class="lc lc-status">Status<div class="col-resizer" data-col="status"></div></div>
-            <div class="lc lc-from">Start Date<div class="col-resizer" data-col="from"></div></div>
-            <div class="lc lc-to">End Date</div>
+            <div class="lc lc-from" id="lcFrom">Start Date<div class="col-resizer" data-col="from"></div></div>
+            <div class="lc lc-to" id="lcTo">End Date</div>
           </div>
         </div>
         <div class="left-body" id="leftBody"></div>
@@ -138,6 +149,14 @@
 
 <div id="bulk-bar" class="bulk-bar">
   <span class="bulk-count">0 công việc đã chọn</span>
+  <select class="bulk-status-select" onchange="ctxSetStatus(this.value);this.value='';" title="Đổi trạng thái hàng loạt">
+    <option value="">Trạng thái...</option>
+    <option value="todo">To Do</option>
+    <option value="doing">In Progress</option>
+    <option value="done">Done</option>
+    <option value="blocked">Blocked</option>
+    <option value="hold">Hold</option>
+  </select>
   <button class="btn btn-sm btn-secondary" onclick="[...selectedIds].forEach(id=>indentTask(id))" title="Tab">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <polyline points="9 4 15 12 9 20"/>
@@ -212,6 +231,8 @@
 <script src="js/panel.js"></script>
 <script src="js/reorder.js"></script>
 <script src="js/paste-tasks.js"></script>
+<script src="js/fill-drag.js"></script>
+<script src="js/context-menu.js"></script>
 <script src="js/events.js"></script>
 <script src="js/app.js"></script>
 </body>

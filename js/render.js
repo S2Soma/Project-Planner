@@ -1,9 +1,17 @@
 // ═══════════════════════════════════════════════
-// RENDER
+// RENDER (debounced via rAF)
 // ═══════════════════════════════════════════════
+let _renderQueued = false, _renderOpts = null;
 function render(opts) {
+  _renderOpts = opts || _renderOpts || {};
+  if (_renderQueued) return;
+  _renderQueued = true;
+  requestAnimationFrame(() => { _renderQueued = false; _doRender(_renderOpts); _renderOpts = null; });
+}
+function _doRender(opts) {
   opts = opts||{};
   refreshCalc();
+  rebuildCaches();
   autoDelay();
 
   const sc  = document.getElementById('tlScroll');
@@ -130,6 +138,7 @@ function renderLeft(grps) {
             <option value="">— PIC —</option>
             ${picList.map(p => `<option value="${esc(p.name)}"${t.owner===p.name?' selected':''}>${esc(p.name)}</option>`).join('')}
           </select>
+          <div class="fill-handle" onmousedown="startFillDrag(event,${t.id},'owner')" title="Kéo xuống để sao chép PIC"></div>
         </div>
 
         <!-- Status -->
@@ -140,20 +149,28 @@ function renderLeft(grps) {
           </select>
         </div>
 
-        <!-- Start Date -->
+        <!-- Start Date / Week -->
         <div class="tc tc-from">
-          <input class="fi fi-date" type="date" value="${t.from||''}"
-            ${t.to?`max="${t.to}"`:''}
-            data-id="${t.id}" data-field="from"
-            onchange="saveDate(this)" onclick="focusTask(${t.id},'from')" title="Start Date">
+          ${proposeMode
+            ? `<input class="fi fi-daynum" type="number" min="0" value="${t.propFrom != null ? t.propFrom : ''}"
+                data-id="${t.id}" data-field="propFrom" placeholder="W"
+                onchange="saveProposeWeek(this)" title="Start Week">`
+            : `<input class="fi fi-date" type="date" value="${t.from||''}"
+                ${t.to?`max="${t.to}"`:''}
+                data-id="${t.id}" data-field="from"
+                onchange="saveDate(this)" onclick="focusTask(${t.id},'from')" title="Start Date">`}
         </div>
 
-        <!-- End Date -->
+        <!-- End Date / Week -->
         <div class="tc tc-to">
-          <input class="fi fi-date" type="date" value="${t.to||''}"
-            ${t.from?`min="${t.from}"`:''}
-            data-id="${t.id}" data-field="to"
-            onchange="saveDate(this)" onclick="focusTask(${t.id},'to')" title="End Date">
+          ${proposeMode
+            ? `<input class="fi fi-daynum" type="number" min="0" value="${t.propTo != null ? t.propTo : ''}"
+                data-id="${t.id}" data-field="propTo" placeholder="W"
+                onchange="saveProposeWeek(this)" title="End Week">`
+            : `<input class="fi fi-date" type="date" value="${t.to||''}"
+                ${t.from?`min="${t.from}"`:''}
+                data-id="${t.id}" data-field="to"
+                onchange="saveDate(this)" onclick="focusTask(${t.id},'to')" title="End Date">`}
         </div>
 
       </div>`;
@@ -198,12 +215,18 @@ function renderTimeline(grps) {
   const inner = document.getElementById('tlInner');
   const W = days.length * COL;
 
-  // Build header rows — adapts to zoom level
+  // Build header rows — adapts to zoom level and propose mode
   let topRow = '', bottomRow = '';
 
   const multiYear = startYear !== endYear;
 
-  if (COL >= 30) {
+  if (proposeMode) {
+    // Propose mode: only week numbers, no day row
+    topRow = weeks.map(w =>
+      `<div class="tl-top-cell" style="width:${w.count*COL}px">W${w.wn}</div>`
+    ).join('');
+    bottomRow = '';
+  } else if (COL >= 30) {
     // Zoom in: Top = weeks, Bottom = days (with date + abbreviation)
     topRow = weeks.map(w =>
       `<div class="tl-top-cell" style="width:${w.count*COL}px">W${w.wn}</div>`
@@ -250,13 +273,20 @@ function renderTimeline(grps) {
   bodyH = Math.max(bodyH, 200);
 
   let rows = '';
-  // Weekend shading only when zoomed in enough
-  if (COL >= 30) {
+  // Weekend shading only when zoomed in enough (not in propose mode)
+  if (COL >= 30 && !proposeMode) {
     days.forEach((d,i) => {
       if (d.dow===0||d.dow===6)
         rows += `<div class="wknd-shade" style="left:${i*COL}px;width:${COL}px;height:${bodyH}px"></div>`;
     });
   }
+  // Week separator lines
+  weeks.forEach(w => {
+    const startIdx = getWeekStartIdx(w.wn);
+    if (startIdx > 0) {
+      rows += `<div class="week-sep" style="left:${startIdx*COL}px;height:${bodyH}px"></div>`;
+    }
+  });
   // Month separators
   days.forEach((d,i) => {
     if (d.d===1&&i>0)
@@ -295,7 +325,7 @@ function renderTimeline(grps) {
   inner.innerHTML = `
     <div class="tl-header" style="width:${W}px">
       <div class="tl-top-row" style="width:${W}px">${topRow}</div>
-      <div class="tl-bot-row" style="width:${W}px">${bottomRow}</div>
+      ${bottomRow ? `<div class="tl-bot-row" style="width:${W}px">${bottomRow}</div>` : ''}
     </div>
     <div class="tl-rows" style="width:${W}px;height:${bodyH}px">${rows}</div>`;
 }

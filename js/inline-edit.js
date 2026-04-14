@@ -70,6 +70,18 @@ function highlightTask(id) {
   setTimeout(() => row.classList.remove('hl'), 900);
 }
 
+// Save propose week number
+function saveProposeWeek(el) {
+  const id = parseInt(el.dataset.id);
+  const field = el.dataset.field; // propFrom or propTo
+  const val = parseInt(el.value);
+  const t = tasks.find(t => t.id === id);
+  if (!t || isNaN(val) || val < 0) return;
+  t[field] = val;
+  saveData();
+  render({ keep: true });
+}
+
 // Save date from date picker
 function saveDate(el) {
   const id = parseInt(el.dataset.id);

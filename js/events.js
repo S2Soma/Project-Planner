@@ -100,6 +100,60 @@ function toggleYear(y) {
 }
 
 // ═══════════════════════════════════════════════
+// PROPOSE MODE
+// ═══════════════════════════════════════════════
+function toggleProposeMode(on) {
+  proposeMode = on;
+  savePropose();
+  document.getElementById('proposeWeeksWrap').style.display = on ? 'flex' : 'none';
+  // Hide/show year selector
+  const yearWrap = document.querySelector('.year-wrap');
+  if (yearWrap) yearWrap.style.display = on ? 'none' : '';
+  // Update column headers
+  const lcFrom = document.getElementById('lcFrom');
+  const lcTo = document.getElementById('lcTo');
+  if (lcFrom) lcFrom.firstChild.textContent = on ? 'Start Week' : 'Start Date';
+  if (lcTo) lcTo.firstChild.textContent = on ? 'End Week' : 'End Date';
+  // Toggle propose-active class on card
+  document.querySelector('.card')?.classList.toggle('propose-active', on);
+  // Default propFrom/propTo for tasks that don't have them yet
+  if (on) {
+    tasks.forEach(t => {
+      if (t.propFrom == null) t.propFrom = 0;
+      if (t.propTo == null) t.propTo = 1;
+    });
+    saveData();
+  }
+  scrollInited = false;
+  render();
+}
+
+function setProposeWeeks(n) {
+  proposeWeeks = Math.max(1, Math.min(200, n));
+  savePropose();
+  scrollInited = false;
+  render();
+}
+
+function initProposeUI() {
+  const check = document.getElementById('proposeCheck');
+  const weeksWrap = document.getElementById('proposeWeeksWrap');
+  const weeksInput = document.getElementById('proposeWeeksInput');
+  const yearWrap = document.querySelector('.year-wrap');
+  const lcFrom = document.getElementById('lcFrom');
+  const lcTo = document.getElementById('lcTo');
+  if (check) check.checked = proposeMode;
+  if (weeksWrap) weeksWrap.style.display = proposeMode ? 'flex' : 'none';
+  if (weeksInput) weeksInput.value = proposeWeeks;
+  if (yearWrap) yearWrap.style.display = proposeMode ? 'none' : '';
+  if (proposeMode) {
+    if (lcFrom) lcFrom.firstChild.textContent = 'Start Week';
+    if (lcTo) lcTo.firstChild.textContent = 'End Week';
+  }
+  document.querySelector('.card')?.classList.toggle('propose-active', proposeMode);
+}
+
+// ═══════════════════════════════════════════════
 // VIEW MODE — zoom presets
 // ═══════════════════════════════════════════════
 const ZOOM_PRESET = { week:9, month:6, year:1 };

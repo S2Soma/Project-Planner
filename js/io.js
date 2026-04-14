@@ -102,32 +102,94 @@ async function exportExcel() {
     catMap[cat].push(t);
   });
 
+  // ── Determine export view mode ──
+  const viewMode = zoomIdx >= 9 ? 'week' : zoomIdx >= 6 ? 'month' : 'year';
+
   // ── Calculate timeline ──
-  let minD = null, maxD = null;
-  tasks.forEach(t => {
-    if (t.from) { const d = new Date(t.from+'T00:00:00'); if (!minD || d < minD) minD = new Date(d); }
-    if (t.to)   { const d = new Date(t.to  +'T00:00:00'); if (!maxD || d > maxD) maxD = new Date(d); }
-  });
-  if (!minD) minD = new Date(startYear, 0, 6);
-  if (!maxD) maxD = new Date(endYear, 2, 28);
-  while (minD.getDay() !== 1) minD.setDate(minD.getDate() - 1);
-  while (maxD.getDay() !== 5) maxD.setDate(maxD.getDate() + 1);
+  let workDays = [], numWeeks = 0, todayColIdx = -1;
+  const C_TODAY = 'FFFFF0F0', C_TODAY_HD = 'FFFF6B6B';
 
-  const workDays = [];
-  const cur = new Date(minD);
-  while (cur <= maxD) {
-    if (cur.getDay() >= 1 && cur.getDay() <= 5) workDays.push(new Date(cur));
-    cur.setDate(cur.getDate() + 1);
+  if (proposeMode) {
+    // Propose: numbered days
+    for (let i = 0; i < proposeWeeks * 7; i++) workDays.push({ dayNum: i + 1, wn: Math.floor(i / 7) });
+    numWeeks = proposeWeeks;
+  } else {
+    let minD = null, maxD = null;
+    tasks.forEach(t => {
+      if (t.from && !t.from.startsWith('day-')) { const d = new Date(t.from+'T00:00:00'); if (!isNaN(d) && (!minD || d < minD)) minD = new Date(d); }
+      if (t.to && !t.to.startsWith('day-'))     { const d = new Date(t.to  +'T00:00:00'); if (!isNaN(d) && (!maxD || d > maxD)) maxD = new Date(d); }
+    });
+    const curYear = new Date().getFullYear();
+    if (!minD) minD = new Date(curYear, 0, 6);
+    if (!maxD) maxD = new Date(curYear, 11, 28);
+    while (minD.getDay() !== 1) minD.setDate(minD.getDate() - 1);
+    while (maxD.getDay() !== 5) maxD.setDate(maxD.getDate() + 1);
+    const cur = new Date(minD);
+    while (cur <= maxD) {
+      if (cur.getDay() >= 1 && cur.getDay() <= 5) workDays.push(new Date(cur));
+      cur.setDate(cur.getDate() + 1);
+    }
+    numWeeks = Math.ceil(workDays.length / 5);
+    const todayDateStr = new Date().toISOString().slice(0, 10);
+    todayColIdx = workDays.findIndex(d => d instanceof Date && d.toISOString().slice(0, 10) === todayDateStr);
   }
-  const numWeeks = Math.ceil(workDays.length / 5);
 
-  // Find today's column index
-  const todayDateStr = new Date().toISOString().slice(0, 10);
-  const todayColIdx = workDays.findIndex(d => d.toISOString().slice(0, 10) === todayDateStr);
+  // ── Build export columns based on view mode ──
+  let exCols = []; // { label, workDayIndices[] }
+  if (proposeMode) {
+    for (let w = 0; w < numWeeks; w++) {
+      const indices = [];
+      for (let d = 0; d < 7; d++) {
+        const idx = w * 7 + d;
+        if (idx < workDays.length) indices.push(idx);
+      }
+      exCols.push({ label: `W${w}`, indices });
+    }
+  } else if (viewMode === 'week') {
+    // Group workdays by ISO week number
+    const weekMap = {};
+    workDays.forEach((d, i) => {
+      if (d instanceof Date) {
+        // Get ISO week number
+        const tmp = new Date(d); tmp.setDate(tmp.getDate() + 3 - (tmp.getDay() + 6) % 7);
+        const wn = Math.ceil((((tmp - new Date(tmp.getFullYear(),0,4)) / 86400000) + 1) / 7);
+        const key = d.getFullYear() * 100 + wn;
+        if (!weekMap[key]) weekMap[key] = { label: `W${String(wn).padStart(2,'0')}`, indices: [] };
+        weekMap[key].indices.push(i);
+      }
+    });
+    exCols = Object.values(weekMap);
+  } else if (viewMode === 'month') {
+    // One column per month
+    if (!proposeMode) {
+      const monthMap = {};
+      workDays.forEach((d, i) => {
+        if (d instanceof Date) {
+          const key = d.getFullYear() * 12 + d.getMonth();
+          if (!monthMap[key]) monthMap[key] = { label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}`, indices: [] };
+          monthMap[key].indices.push(i);
+        }
+      });
+      exCols = Object.values(monthMap);
+    }
+  } else {
+    // Year view
+    if (!proposeMode) {
+      const yearMap = {};
+      workDays.forEach((d, i) => {
+        if (d instanceof Date) {
+          const y = d.getFullYear();
+          if (!yearMap[y]) yearMap[y] = { label: String(y), indices: [] };
+          yearMap[y].indices.push(i);
+        }
+      });
+      exCols = Object.values(yearMap);
+    }
+  }
 
   // Column indices (1-based for ExcelJS)
-  const DC  = 9;                          // Day cols start at col I
-  const TNC = DC + workDays.length + 3;   // Team No. column
+  const DC  = 9;
+  const TNC = DC + exCols.length + 3;
 
   // ── Column widths ──
   ws.getColumn(1).width = 4;
@@ -138,45 +200,52 @@ async function exportExcel() {
   ws.getColumn(6).width = 14;
   ws.getColumn(7).width = 13;
   ws.getColumn(8).width = 13;
-  for (let i = 0; i < workDays.length; i++) ws.getColumn(DC+i).width = 3.5;
+  const colW = viewMode === 'week' ? 8 : viewMode === 'month' ? 14 : 18;
+  for (let i = 0; i < exCols.length; i++) ws.getColumn(DC+i).width = colW;
   ws.getColumn(TNC).width = 5;
   ws.getColumn(TNC+1).width = 16;
   ws.getColumn(TNC+2).width = 12;
   ws.getColumn(TNC+3).width = 22;
   ws.getColumn(TNC+4).width = 12;
 
-  // Today highlight color
-  const C_TODAY    = 'FFFFF0F0';   // light red/pink background
-  const C_TODAY_HD = 'FFFF6B6B';   // red for header rows
-
-  // ═══════ ROW 1: actual dates (dd/MM) — vertical text ═══════
-  ws.getRow(1).height = 38;
-  workDays.forEach((d, i) => {
-    const cell = ws.getCell(1, DC+i);
-    cell.value = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
-    const isToday = i === todayColIdx;
-    cell.font = { size: 7, color:{argb: isToday ? C_TODAY_HD : C.grayText}, bold: isToday };
-    cell.alignment = { horizontal:'center', vertical:'middle', textRotation:90 };
-    if (isToday) cell.fill = fill(C_TODAY);
-  });
+  // ═══════ ROW 1: date info (skip in propose mode) ═══════
+  if (proposeMode) {
+    ws.getRow(1).height = 8;
+  } else if (viewMode === 'week') {
+    ws.getRow(1).height = 38;
+    exCols.forEach((col, i) => {
+      const firstDay = workDays[col.indices[0]];
+      const lastDay = workDays[col.indices[col.indices.length - 1]];
+      if (firstDay instanceof Date && lastDay instanceof Date) {
+        const cell = ws.getCell(1, DC+i);
+        cell.value = `${p2(firstDay.getDate())}/${p2(firstDay.getMonth()+1)}-${p2(lastDay.getDate())}/${p2(lastDay.getMonth()+1)}`;
+        const hasToday = col.indices.includes(todayColIdx);
+        cell.font = { size: 7, color:{argb: hasToday ? C_TODAY_HD : C.grayText}, bold: hasToday };
+        cell.alignment = { horizontal:'center', vertical:'middle' };
+        if (hasToday) cell.fill = fill(C_TODAY);
+      }
+    });
+  } else {
+    ws.getRow(1).height = 14;
+  }
   const tcLbl = ws.getCell(1, TNC);
   tcLbl.value = 'TC TEAM';
   tcLbl.font = { bold:true, size:12, color:{argb:C.evergreen} };
 
-  // ═══════ ROW 2: week labels (merged) — highlight today's week ═══════
-  ws.getRow(2).height = 24;
-  const todayWeekIdx = todayColIdx >= 0 ? Math.floor(todayColIdx / 5) : -1;
-  for (let w = 0; w < numWeeks; w++) {
-    const sc = DC + w*5;
-    const ec = Math.min(sc+4, DC+workDays.length-1);
-    if (ec > sc) ws.mergeCells(2, sc, 2, ec);
-    const cell = ws.getCell(2, sc);
-    const isThisWeek = w === todayWeekIdx;
-    cell.value = `W${String(w+1).padStart(2,'0')}`;
-    cell.fill = fill(isThisWeek ? C_TODAY_HD : C.forest);
-    cell.font = { bold:true, color:{argb:C.white}, size:10 };
-    cell.alignment = { horizontal:'center', vertical:'middle' };
-    cell.border = bdr(C.evergreen);
+  // ═══════ ROW 2: column labels (skip in propose mode) ═══════
+  if (proposeMode) {
+    ws.getRow(2).height = 8;
+  } else {
+    ws.getRow(2).height = 24;
+    exCols.forEach((col, i) => {
+      const cell = ws.getCell(2, DC+i);
+      cell.value = col.label;
+      const hasToday = col.indices.includes(todayColIdx);
+      cell.fill = fill(hasToday ? C_TODAY_HD : C.forest);
+      cell.font = { bold:true, color:{argb:C.white}, size:10 };
+      cell.alignment = { horizontal:'center', vertical:'middle' };
+      cell.border = bdr(C.evergreen);
+    });
   }
 
   // ═══════ ROW 3: column headers ═══════
@@ -187,22 +256,22 @@ async function exportExcel() {
     alignment: { vertical:'middle', wrapText:true },
     border: bdr(C.evergreen),
   };
+  const dateLbl = proposeMode ? 'Start Week' : 'Start Date';
+  const dateEndLbl = proposeMode ? 'End Week' : 'End Date';
   [[2,'Task Name'],[3,'Description'],[4,'Note'],[5,'Main PIC'],
-   [6,'Status'],[7,'Start Date'],[8,'End Date']].forEach(([col,lbl]) => {
+   [6,'Status'],[7,dateLbl],[8,dateEndLbl]].forEach(([col,lbl]) => {
     const cell = ws.getCell(3, col);
     cell.value = lbl;
     cell.fill = hdrStyle.fill; cell.font = hdrStyle.font;
     cell.alignment = hdrStyle.alignment; cell.border = hdrStyle.border;
   });
-  // Day headers — show actual date (dd) + highlight today
-  const DAY_ABBR_EX = ['CN','T2','T3','T4','T5','T6','T7'];
-  workDays.forEach((d, i) => {
+  // Timeline column headers row 3
+  exCols.forEach((col, i) => {
     const cell = ws.getCell(3, DC+i);
-    const isToday = i === todayColIdx;
-    cell.value = `${DAY_ABBR_EX[d.getDay()]}\n${d.getDate()}`;
-    cell.fill = fill(isToday ? C_TODAY_HD : C.forest);
-    cell.font = { bold:true, color:{argb:C.white}, size:7 };
-    cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+    cell.value = col.label;
+    cell.fill = fill(C.forest);
+    cell.font = { bold:true, color:{argb:C.white}, size: 8 };
+    cell.alignment = { horizontal:'center', vertical:'middle' };
     cell.border = bdr(C.evergreen);
   });
   // Team headers
@@ -229,10 +298,11 @@ async function exportExcel() {
       const cell = ws.getCell(r, c);
       cell.value = ' '; cell.fill = fill(C.mint); cell.border = bdr(C.border);
     }
-    for (let i = 0; i < workDays.length; i++) {
+    for (let i = 0; i < exCols.length; i++) {
       const cell = ws.getCell(r, DC+i);
       cell.value = ' ';
-      cell.fill = fill(i === todayColIdx ? C_TODAY : C.mintDark);
+      const hasToday = !proposeMode && exCols[i].indices.includes(todayColIdx);
+      cell.fill = fill(hasToday ? C_TODAY : C.mintDark);
       cell.border = bdr(C.borderLt);
     }
     r++;
@@ -243,11 +313,14 @@ async function exportExcel() {
       const bg = idx % 2 === 0 ? C.white : C.offwhite;
       const bd = bdr(C.borderLt);
 
-      // B — Name
+      // B — Name (indented by level)
+      const level = getTaskLevel(t);
+      const indent = level > 0 ? '    '.repeat(level) : '';
       const nm = ws.getCell(r, 2);
-      nm.value = t.name || '';
-      nm.fill = fill(bg); nm.font = { size:10, color:{argb:C.darkText} };
-      nm.alignment = { vertical:'middle', wrapText:true }; nm.border = bd;
+      nm.value = indent + (t.name || '');
+      nm.fill = fill(bg);
+      nm.font = { size:10, color:{argb: level > 0 ? 'FF6B7280' : C.darkText}, italic: level > 0 };
+      nm.alignment = { vertical:'middle', wrapText:true, indent: level }; nm.border = bd;
 
       // C — Description
       const dc = ws.getCell(r, 3);
@@ -280,34 +353,62 @@ async function exportExcel() {
       }
       sc.alignment = { horizontal:'center', vertical:'middle' }; sc.border = bd;
 
-      // G — Start Date
+      // G — Start Date / Week
       const fc = ws.getCell(r, 7);
-      if (t.from) { fc.value = new Date(t.from + 'T00:00:00'); fc.numFmt = 'yyyy-mm-dd'; }
+      if (proposeMode) {
+        if (t.propFrom != null) fc.value = `W${t.propFrom}`;
+      } else {
+        if (t.from) { fc.value = new Date(t.from + 'T00:00:00'); fc.numFmt = 'yyyy-mm-dd'; }
+      }
       fc.fill = fill(bg); fc.font = { size:9, color:{argb:C.darkText} };
       fc.alignment = { horizontal:'center', vertical:'middle' }; fc.border = bd;
 
-      // H — End Date
+      // H — End Date / Week
       const tc = ws.getCell(r, 8);
-      if (t.to) { tc.value = new Date(t.to + 'T00:00:00'); tc.numFmt = 'yyyy-mm-dd'; }
+      if (proposeMode) {
+        if (t.propTo != null) tc.value = `W${t.propTo}`;
+      } else {
+        if (t.to) { tc.value = new Date(t.to + 'T00:00:00'); tc.numFmt = 'yyyy-mm-dd'; }
+      }
       tc.fill = fill(bg); tc.font = { size:9, color:{argb:C.darkText} };
       tc.alignment = { horizontal:'center', vertical:'middle' }; tc.border = bd;
 
-      // Day columns — Gantt bar visualization (uniform color)
-      const fromTime = t.from ? new Date(t.from+'T00:00:00').getTime() : null;
-      const toTime   = t.to   ? new Date(t.to  +'T00:00:00').getTime() : null;
+      // Timeline columns — Gantt bar visualization (grouped by view mode)
       const picColor = getPicColor(t.owner);
       const barColor = hexToARGB(picColor);
 
-      for (let i = 0; i < workDays.length; i++) {
+      // Determine which workDay indices are in the task range
+      const barWorkDaySet = new Set();
+      if (proposeMode) {
+        const fromW = t.propFrom != null ? t.propFrom : null;
+        const toW = t.propTo != null ? t.propTo : null;
+        if (fromW != null && toW != null) {
+          const startDay = fromW * 7;
+          const endDay = (toW + 1) * 7;
+          for (let d = startDay; d < endDay && d < workDays.length; d++) barWorkDaySet.add(d);
+        }
+      } else {
+        const fromTime = t.from ? new Date(t.from+'T00:00:00').getTime() : null;
+        const toTime = t.to ? new Date(t.to+'T00:00:00').getTime() : null;
+        if (fromTime && toTime) {
+          workDays.forEach((d, i) => {
+            if (d instanceof Date && d.getTime() >= fromTime && d.getTime() <= toTime) barWorkDaySet.add(i);
+          });
+        }
+      }
+
+      for (let i = 0; i < exCols.length; i++) {
         const cell = ws.getCell(r, DC+i);
         cell.value = ' ';
-        const isBar = fromTime && toTime && workDays[i].getTime() >= fromTime && workDays[i].getTime() <= toTime;
-        if (isBar) {
+        // Check if any workday in this column group falls in the bar range
+        const hasBar = exCols[i].indices.some(idx => barWorkDaySet.has(idx));
+        const hasToday = !proposeMode && exCols[i].indices.includes(todayColIdx);
+        if (hasBar) {
           cell.fill = fill(barColor);
         } else {
-          cell.fill = fill(i === todayColIdx ? C_TODAY : bg);
+          cell.fill = fill(hasToday ? C_TODAY : bg);
         }
-        cell.border = bdr(i === todayColIdx ? C_TODAY_HD : C.borderLt);
+        cell.border = bdr(hasToday ? C_TODAY_HD : C.borderLt);
       }
 
       r++;
@@ -317,12 +418,15 @@ async function exportExcel() {
   // ═══════ TEAM TABLE ═══════
   picList.forEach((p, i) => {
     const tr = 4 + i;
+    const picARGB = hexToARGB(p.color);
     ws.getCell(tr, TNC).value = i+1;
     ws.getCell(tr, TNC).alignment = { horizontal:'center' };
     ws.getCell(tr, TNC).border = bdr(C.borderLt);
+    ws.getCell(tr, TNC).fill = fill(picARGB);
     ws.getCell(tr, TNC+1).value = p.name;
     ws.getCell(tr, TNC+1).font = { size:10, color:{argb:C.darkText} };
     ws.getCell(tr, TNC+1).border = bdr(C.borderLt);
+    ws.getCell(tr, TNC+1).fill = fill(picARGB);
     [TNC+2, TNC+3, TNC+4].forEach(c => {
       ws.getCell(tr, c).value = ' ';
       ws.getCell(tr, c).border = bdr(C.borderLt);

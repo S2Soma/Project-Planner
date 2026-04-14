@@ -48,7 +48,35 @@ function buildMonths(days) {
   return Object.values(map).sort((a,b) => (a.y*12+a.m) - (b.y*12+b.m));
 }
 
+// Build propose days: numbered days grouped into weeks
+function buildProposeDays(numWeeks) {
+  const arr = [];
+  const totalDays = numWeeks * 7;
+  for (let i = 0; i < totalDays; i++) {
+    const wn = Math.floor(i / 7);
+    const dow = i % 7; // 0=Mon ... 6=Sun
+    arr.push({ y:0, m:0, d:i+1, dow:(dow+1)%7, wn, date:`day-${i+1}`, dayNum:i+1 });
+  }
+  return arr;
+}
+
 function refreshCalc() {
+  COL = ZOOM_LEVELS[zoomIdx];
+
+  if (proposeMode) {
+    // Propose mode: generic numbered weeks
+    days = buildProposeDays(proposeWeeks);
+    todayStr = '';
+    todayIdx = -1;
+    weeks = [];
+    for (let w = 0; w < proposeWeeks; w++) {
+      weeks.push({ wn: w, count: 7 });
+    }
+    months = [{ y:0, m:0, count: days.length }];
+    startYear = 0; endYear = 0; year = 0;
+    return;
+  }
+
   // Auto-calculate date range from task dates
   let minY = null, maxY = null;
   tasks.forEach(t => {
@@ -88,7 +116,6 @@ function refreshCalc() {
 
   days     = buildDays(startYear, endYear);
   todayStr = new Date().toISOString().slice(0,10);
-  COL      = ZOOM_LEVELS[zoomIdx];
   weeks    = buildWeeks(days);
   months   = buildMonths(days);
   todayIdx = days.findIndex(d => d.date === todayStr);

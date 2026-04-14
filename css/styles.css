@@ -56,6 +56,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .view-tab:hover{color:#334155}
 .view-tab.active{background:#fff;color:#1e293b;box-shadow:0 1px 3px rgba(0,0,0,.1)}
 
+/* Propose mode toggle */
+.propose-wrap{display:flex;align-items:center;gap:8px;margin-left:8px}
+.propose-toggle{
+  display:flex;align-items:center;gap:5px;
+  cursor:var(--cur-pointer);font-size:11px;font-weight:600;color:#64748b;
+  user-select:none;
+}
+.propose-toggle input[type="checkbox"]{
+  width:14px;height:14px;accent-color:#00A651;cursor:var(--cur-pointer);
+}
+.propose-toggle input:checked + .propose-label{color:#00A651}
+.propose-weeks{display:flex;align-items:center;gap:4px;font-size:11px;color:#64748b;font-weight:500}
+.propose-weeks-input{
+  width:48px;height:24px;border:1px solid #e2e8f0;border-radius:3px;
+  font-size:11px;text-align:center;outline:none;font-family:inherit;
+}
+.propose-weeks-input:focus{border-color:#00A651;box-shadow:0 0 0 2px rgba(0,166,81,.1)}
+.fi-daynum{
+  font-size:11px;color:#475569;text-align:center;
+  -moz-appearance:textfield;
+}
+.fi-daynum::-webkit-outer-spin-button,
+.fi-daynum::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
 /* ── Page ───────────────────────────────────── */
 .page{flex:1;display:flex;flex-direction:column;padding:8px 16px;overflow:hidden;gap:8px}
 
@@ -130,6 +154,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 
 /* Header: col names — syncs with timeline header */
 .left-header{height:78px;flex-shrink:0;display:flex;flex-direction:column}
+.propose-active .left-header{height:40px}
 
 /* Column toggle button + dropdown (in topbar) */
 .col-toggle-wrap{position:relative}
@@ -367,6 +392,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
             opacity:.7;pointer-events:none;z-index:5}
 .wknd-shade{position:absolute;top:0;bottom:0;background:rgba(0,0,0,.02);pointer-events:none;z-index:0}
 .msep{position:absolute;top:0;bottom:0;width:1px;background:#dde3ea;pointer-events:none;z-index:1}
+.week-sep{position:absolute;top:0;bottom:0;width:1px;background:rgba(0,166,81,.18);pointer-events:none;z-index:1}
 
 /* Gantt bar */
 .task-bar{position:absolute;border-radius:3px;display:flex;align-items:center;
@@ -400,9 +426,55 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 .tt-name{font-size:12.5px;font-weight:700;color:#1e293b;margin-bottom:4px}
 .tt-row{font-size:11.5px;color:#475569;margin-bottom:2px}
 .tt-muted{color:#94a3b8}
+.tt-badge{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;background:#e2e8f0;color:#64748b;margin-bottom:4px;margin-right:3px}
+.tt-badge-parent{background:#E6F7ED;color:#005C2E}
+.tt-pic{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:600;color:#fff}
+.tt-desc{font-size:11px;color:#64748b;margin-top:5px;border-top:1px solid #f1f5f9;padding-top:5px}
+.tt-notes{font-size:10px;color:#94a3b8;font-style:italic;margin-top:3px}
 .tt-pb{display:flex;align-items:center;gap:6px;margin-top:5px}
 .tt-pb-bar{flex:1;background:#e2e8f0;border-radius:99px;height:4px;overflow:hidden}
 .tt-pb-fill{height:100%;border-radius:99px}
+
+/* ── Right-click context menu ──────────────── */
+.ctx-menu{
+  position:fixed;z-index:99999;display:none;
+  background:#fff;border:1px solid #e2e8f0;border-radius:8px;
+  box-shadow:0 8px 32px rgba(0,0,0,.15);padding:4px 0;
+  min-width:180px;font-size:12px;
+}
+.ctx-item{
+  display:flex;align-items:center;gap:8px;padding:6px 14px;
+  cursor:var(--cur-pointer);color:#334155;font-weight:500;
+  transition:background .08s;white-space:nowrap;
+}
+.ctx-item:hover{background:#f1f5f9}
+.ctx-item svg{flex-shrink:0;color:#64748b}
+.ctx-danger{color:#dc2626}
+.ctx-danger svg{color:#dc2626}
+.ctx-danger:hover{background:#fef2f2}
+.ctx-key{margin-left:auto;font-size:10px;color:#94a3b8;font-weight:400}
+.ctx-sep{height:1px;background:#e2e8f0;margin:3px 0}
+.ctx-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.ctx-dot.s-todo{background:#94a3b8}.ctx-dot.s-doing{background:#00A651}
+.ctx-dot.s-done{background:#065F46}.ctx-dot.s-blocked{background:#dc2626}
+.ctx-dot.s-hold{background:#d97706}.ctx-dot.s-delay{background:#be185d}
+.ctx-sub{position:relative}
+.ctx-has-sub{position:relative}
+.ctx-arrow{margin-left:auto;color:#94a3b8}
+.ctx-submenu{
+  display:none;position:absolute;left:100%;top:-4px;
+  background:#fff;border:1px solid #e2e8f0;border-radius:6px;
+  box-shadow:0 4px 16px rgba(0,0,0,.12);padding:4px 0;min-width:140px;
+}
+.ctx-sub:hover .ctx-submenu{display:block}
+
+/* ── Bulk status select ────────────────────── */
+.bulk-status-select{
+  height:28px;border:1px solid rgba(255,255,255,.3);border-radius:4px;
+  background:rgba(255,255,255,.15);color:#fff;font-size:11px;font-weight:600;
+  padding:0 6px;cursor:var(--cur-pointer);outline:none;font-family:inherit;
+}
+.bulk-status-select option{color:#334155;background:#fff}
 
 /* ── Drop overlay (drag-drop file import) ───── */
 #drop-overlay{
@@ -669,6 +741,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
 }
 .pic-select:hover{background:rgba(0,166,81,.04)}
 .pic-select:focus{background:rgba(0,166,81,.06);outline:1.5px solid #33B96A}
+
+/* Fill handle — drag to copy PIC/Status */
+.tc-pic{position:relative}
+.fill-handle{
+  position:absolute;right:1px;bottom:1px;width:8px;height:8px;
+  background:#00A651;border:1.5px solid #fff;border-radius:1px;
+  cursor:crosshair;opacity:0;transition:opacity .12s;z-index:5;
+}
+.tc-pic:hover .fill-handle{opacity:1}
+.task-row.fill-source{outline:2px solid #00A651;outline-offset:-2px;z-index:2}
+.task-row.fill-target{background:#E6F7ED !important}
+.task-row.fill-target .tc-pic{background:rgba(0,166,81,.12)}
 
 /* ══════════════════════════════════════════════
    PASTE TASKS MODAL

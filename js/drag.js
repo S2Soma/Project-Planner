@@ -93,9 +93,27 @@ document.addEventListener('mousemove', e => {
       });
     }
   } else {
-    const ns=Math.max(1,Math.min(drag.span+nd,days.length-drag.origSi));
+    let ns=Math.max(1,Math.min(drag.span+nd,days.length-drag.origSi));
+    // Snap to week boundary (within 2 days)
+    const endIdx = drag.origSi + ns - 1;
+    for (let w = 0; w < weeks.length; w++) {
+      const wStart = proposeMode ? w * 7 : days.findIndex(d => d.wn === weeks[w].wn);
+      const wEnd = wStart + weeks[w].count - 1;
+      // Snap to end of week
+      if (Math.abs(endIdx - wEnd) <= 1 && wEnd < days.length) {
+        ns = wEnd - drag.origSi + 1;
+        break;
+      }
+      // Snap to start of next week
+      if (Math.abs(endIdx - (wEnd + 1)) <= 1 && wEnd + 1 < days.length) {
+        ns = wEnd + 1 - drag.origSi + 1;
+        break;
+      }
+    }
+    ns = Math.max(1, Math.min(ns, days.length - drag.origSi));
     barEl.style.width=(ns*COL-4)+'px';
-    showDragTip(e,`↔ End: ${days[drag.origSi+ns-1]?.date}`);
+    const endDay = days[drag.origSi+ns-1];
+    showDragTip(e,`↔ End: ${endDay?.date}${endDay?.wn !== undefined ? ' (W'+endDay.wn+')':''}`);
   }
 });
 document.addEventListener('mouseup', e => {
@@ -134,7 +152,16 @@ document.addEventListener('mouseup', e => {
           });
         }
       } else {
-        const ns=Math.max(1,Math.min(span+delta,days.length-origSi));
+        let ns=Math.max(1,Math.min(span+delta,days.length-origSi));
+        // Snap to week boundary
+        const endIdx = origSi + ns - 1;
+        for (let w = 0; w < weeks.length; w++) {
+          const wStart = proposeMode ? w * 7 : days.findIndex(d => d.wn === weeks[w].wn);
+          const wEnd = wStart + weeks[w].count - 1;
+          if (Math.abs(endIdx - wEnd) <= 1 && wEnd < days.length) { ns = wEnd - origSi + 1; break; }
+          if (Math.abs(endIdx - (wEnd + 1)) <= 1 && wEnd + 1 < days.length) { ns = wEnd + 1 - origSi + 1; break; }
+        }
+        ns = Math.max(1, Math.min(ns, days.length - origSi));
         t.to=days[origSi+ns-1].date;
       }
       saveData();

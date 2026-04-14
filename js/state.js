@@ -13,6 +13,8 @@ let picList = []; // [{name, color}]
 let projectName = '';
 let selectedYears = new Set();
 let availableYears = [];
+let proposeMode = false;
+let proposeWeeks = 12;
 
 const COL_WIDTHS = { sel:28, name:190, desc:130, note:90, pic:90, status:90, from:72, to:72 };
 
@@ -41,6 +43,13 @@ function loadData() {
     const pn = localStorage.getItem('pmm_projectName');
     if (pn) projectName = pn;
   } catch(e) {}
+  try {
+    const pm = localStorage.getItem('pmm_propose');
+    if (pm) { const d = JSON.parse(pm); proposeMode = !!d.mode; proposeWeeks = d.weeks || 12; }
+  } catch(e) {}
+}
+function savePropose() {
+  localStorage.setItem('pmm_propose', JSON.stringify({ mode: proposeMode, weeks: proposeWeeks }));
 }
 function saveProjectName() {
   localStorage.setItem('pmm_projectName', projectName);
